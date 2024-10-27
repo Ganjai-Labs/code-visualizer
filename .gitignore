@@ -32,3 +32,4 @@ yarn-error.log*
 src/**/*.test.js
 
 # Include any other patterns you want to ignore
+package-lock.json

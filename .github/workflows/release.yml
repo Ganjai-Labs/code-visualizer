@@ -21,11 +21,29 @@ jobs:
         id: package-version
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
-      - name: Read CHANGELOG.md
+      - name: Update CHANGELOG.md and get changes
         id: changelog
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ./CHANGELOG.md
+        run: |
+          VERSION=${{ steps.package-version.outputs.current-version }}
+          TODAY=$(date +%Y-%m-%d)
+          
+          # Update the date in CHANGELOG.md
+          sed -i "s/\[$VERSION\] - [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/[$VERSION] - $TODAY/" CHANGELOG.md
+          
+          # Extract changes for this version
+          CHANGES=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit CHANGELOG.md changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          git commit -m "Update CHANGELOG.md with today's date" || echo "No changes to commit"
+          git push
 
       - name: Create Release
         id: create_release
@@ -33,9 +51,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.package-version.outputs.current-version}}
+          tag_name: v${{ steps.package-version.outputs.current-version }}
           release_name: Release ${{ steps.package-version.outputs.current-version }}
-          body: ${{ steps.changelog.outputs.content }}
+          body: ${{ steps.changelog.outputs.changes }}
           draft: false
           prerelease: false
 
