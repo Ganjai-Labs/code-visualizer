@@ -2,7 +2,7 @@
   "name": "code-visualizer",
   "displayName": "Code Visualizer",
   "description": "Visualize code structure and call hierarchy",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "publisher": "SirilGanjai",
   "engines": {
     "vscode": "^1.60.0"
