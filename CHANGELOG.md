@@ -4,7 +4,11 @@ All notable changes to the "Code Visualizer" extension will be documented in thi
 
 ## [Unreleased]
 
-## [0.0.3] - 2024-10-27
+## [0.0.4] - YYYY-MM-DD
+### Added
+- Moved repo to Ganjai-Labs
+
+## [0.0.3] - YYYY-MM-DD
 ### Added
 - Visualize command
 
@@ -13,8 +17,7 @@ All notable changes to the "Code Visualizer" extension will be documented in thi
 - Improvement to existing feature
 
 
-### Moved repo
-- Moved repo to Ganjai-Labs
+
 
 
 ## [0.0.2] - Previous release date
