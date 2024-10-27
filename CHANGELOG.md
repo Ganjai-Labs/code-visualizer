@@ -23,3 +23,4 @@ All notable changes to the "Code Visualizer" extension will be documented in thi
 ## [0.0.2] - Previous release date
 - Generate CodeFlow command
 
+

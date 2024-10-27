@@ -29,9 +29,10 @@ jobs:
           
           # Update the date in CHANGELOG.md
           sed -i "s/\[$VERSION\] - [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/[$VERSION] - $TODAY/" CHANGELOG.md
+          sed -i "s/\[$VERSION\] - YYYY-MM-DD/[$VERSION] - $TODAY/" CHANGELOG.md
           
-          # Extract changes for this version
-          CHANGES=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          # Extract changes for this version with updated date
+          CHANGES=$(sed -n "/## \[$VERSION\] - $TODAY/,/## \[/p" CHANGELOG.md | sed '$d')
           
           echo "changes<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGES" >> $GITHUB_OUTPUT
@@ -42,7 +43,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add CHANGELOG.md
-          git commit -m "Update CHANGELOG.md with today's date" || echo "No changes to commit"
+          git commit -m "Update CHANGELOG.md with release date [skip ci]" || echo "No changes to commit"
           git push
 
       - name: Create Release
