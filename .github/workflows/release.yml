@@ -46,7 +46,19 @@ jobs:
           git commit -m "Update CHANGELOG.md with release date [skip ci]" || echo "No changes to commit"
           git push
 
+      - name: Check if version already released
+        id: check_version
+        run: |
+          VERSION=${{ steps.package-version.outputs.current-version }}
+          if grep -q "\[$VERSION\]" CHANGELOG.md; then
+            echo "Version $VERSION already released. Exiting."
+            echo "version_exists=true" >> $GITHUB_ENV
+          else
+            echo "version_exists=false" >> $GITHUB_ENV
+          fi
+
       - name: Create Release
+        if: ${{ steps.check_version.outputs.version_exists == 'false' }}  # Check the output from the previous step
         id: create_release
         uses: actions/create-release@v1
         env:
