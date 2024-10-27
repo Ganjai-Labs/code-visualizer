@@ -1,0 +1,40 @@
+name: Build VS Code Extension
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: |
+        if [ ! -f package-lock.json ]; then
+          npm install
+        fi
+        npm ci
+
+    - name: Install vsce
+      run: npm install -g @vscode/vsce
+
+    - name: Compile TypeScript
+      run: npm run compile
+
+    - name: Package Extension
+      run: npx @vscode/vsce package --baseContentUrl=https://github.com/Ganjai-Labs/code-visualizer --baseImagesUrl=https://github.com/Ganjai-Labs/code-visualizer
+
+    - name: Upload VSIX as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: extension
+        path: "*.vsix"
