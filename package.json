@@ -1,0 +1,89 @@
+{
+  "name": "code-visualizer",
+  "displayName": "Code Visualizer",
+  "description": "Visualize code structure and call hierarchy",
+  "version": "0.0.3",
+  "publisher": "SirilGanjai",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onCommand:codeflow.generateCodeFlow"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeflow.generateCodeFlow",
+        "title": "Generate CodeFlow"
+      },
+      {
+        "command": "codeflow.visualize",
+        "title": "Visualize"
+      },
+      {
+        "command": "codeflow.goToDefinition",
+        "title": "Go to Definition"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorTextFocus",
+          "command": "codeflow.visualize",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codeflow.visualize",
+          "when": "view == functionExplorer",
+          "group": "inline"
+        },
+        {
+          "command": "codeflow.goToDefinition",
+          "when": "view == functionExplorer",
+          "group": "inline"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "functionExplorer",
+          "name": "Function Explorer"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.8",
+    "@types/node": "^14.14.37",
+    "@types/vscode": "^1.60.0",
+    "@typescript-eslint/eslint-plugin": "^4.22.0",
+    "@typescript-eslint/parser": "^4.22.0",
+    "eslint": "^7.25.0",
+    "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "@braintree/sanitize-url": "^7.1.0",
+    "d3-color": "^3.1.0",
+    "dompurify": "^3.1.6",
+    "mermaid": "^11.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ganjai-Labs/code-visualizer.git"
+  }
+}

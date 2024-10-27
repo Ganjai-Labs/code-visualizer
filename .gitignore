@@ -1,0 +1,34 @@
+# Dependency directories
+node_modules/
+
+# Build output
+out/
+dist/
+
+# VS Code specific files
+.vscode-test/
+
+# macOS specific files
+.DS_Store
+
+# Extension packaged files
+*.vsix
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Exclude test.js files in src directory
+src/**/*.test.js
+
+# Include any other patterns you want to ignore
