@@ -375,7 +375,7 @@ function getWebviewContent(data: {nodes: any[], edges: any[]}) {
                                     from: edge.from,
                                     to: edge.to,
                                     arrows: 'to',
-                                    smooth: {type: 'curvedCW', roundness: 0.2 + (i * 0.1)}
+                                    smooth: {type: 'cubicBezier', roundness: 0.6 + (i * 0.1)}
                                 });
                             }
                         });
@@ -517,7 +517,7 @@ function getWebviewContent(data: {nodes: any[], edges: any[]}) {
                                             from: edge.from,
                                             to: edge.to,
                                             arrows: 'to',
-                                            smooth: {type: 'curvedCW', roundness: 0.2 + (i * 0.1)}
+                                            smooth: {type: 'cubicBezier', roundness: 0.6 + (i * 0.1)}
                                         });
                                     }
                                 });
