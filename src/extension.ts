@@ -96,8 +96,13 @@ let nodePositions: Map<number, {x: number, y: number}> = new Map();
 function showFlowDiagram(data: {nodes: any[], edges: any[]}, context: vscode.ExtensionContext) {
     console.log('Creating or updating webview panel');
     if (panel) {
-        console.log('Updating existing panel');
-        panel.webview.postMessage({ command: 'updateDiagram', data: data, positions: Array.from(nodePositions.entries()) });
+        console.log('Updating existing panel with data:', JSON.stringify(data));
+        console.log('Current node positions:', Array.from(nodePositions.entries()));
+        panel.webview.postMessage({ 
+            command: 'updateDiagram', 
+            data: data,
+            positions: Array.from(nodePositions.entries())
+        });
     } else {
         console.log('Creating new panel');
         panel = vscode.window.createWebviewPanel(
@@ -144,111 +149,32 @@ function showFlowDiagram(data: {nodes: any[], edges: any[]}, context: vscode.Ext
 
 // Modify visualizeNode to accept context
 async function visualizeNode(nodeId: number, context: vscode.ExtensionContext) {
-    console.log(`Visualizing node with ID: ${nodeId}`);
     const node = globalData.nodes.find(n => n.id === nodeId);
-    if (!node) {
-        console.log('Node not found in globalData');
-        return;
-    }
-    console.log(`Found node: ${JSON.stringify(node)}`);
-
-    // Check if this node has already been visualized
-    if (node.visualized) {
-        console.log('Node has already been visualized');
-        vscode.window.showInformationMessage('This function has already been visualized.');
-        return;
-    }
+    if (!node) return;
 
     try {
-        // Open all documents that contain the function with the same name
-        const documents = await vscode.workspace.findFiles('**/*.{c,h}');
-        let callHierarchyItems: vscode.CallHierarchyItem[] | undefined;
-
-        for (const docUri of documents) {
-            const document = await vscode.workspace.openTextDocument(docUri);
-            const text = document.getText();
-            const functionRegex = new RegExp(`\\b${node.label}\\s*\\(`);
-            const match = text.match(functionRegex);
-
-            if (match) {
-                const position = document.positionAt(match.index!);
-                callHierarchyItems = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
-                    'vscode.prepareCallHierarchy',
-                    document.uri,
-                    position
-                );
-
-                if (callHierarchyItems && callHierarchyItems.length > 0) {
-                    break;
-                }
-            }
-        }
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(node.file));
+        // Instead of showing the document, let's just get the call hierarchy
+        const position = new vscode.Position(node.line, node.character);
+        
+        console.log(`Requesting call hierarchy for node ${nodeId} at ${node.file}:${position.line},${position.character}`);
+        const callHierarchyItems = await vscode.commands.executeCommand<vscode.CallHierarchyItem[]>(
+            'vscode.prepareCallHierarchy',
+            document.uri,
+            position
+        );
 
         if (callHierarchyItems && callHierarchyItems.length > 0) {
-            console.log('Call hierarchy found, generating new flow diagram');
-            
             const incomingCalls = await vscode.commands.executeCommand<vscode.CallHierarchyIncomingCall[]>(
                 'vscode.provideIncomingCalls',
                 callHierarchyItems[0]
             );
 
             const newData = await generateFlowDiagramFromCallHierarchy(callHierarchyItems[0], incomingCalls);
-            console.log(`New data generated: ${JSON.stringify(newData)}`);
             
-            let hasNewConnections = false;
-
-            // Add new nodes to globalData or find existing ones
-            for (const newNode of newData.nodes) {
-                if (newNode.id !== 0) { // Skip the root node as it already exists
-                    const existingNode = globalData.nodes.find(n => n.label === newNode.label && n.file === newNode.file);
-                    if (!existingNode) {
-                        const newNodeId = nextNodeId++;
-                        globalData.nodes.push({
-                            ...newNode,
-                            id: newNodeId,
-                            visualized: false
-                        });
-                        console.log(`Added new node: ${JSON.stringify(globalData.nodes[globalData.nodes.length - 1])}`);
-                        hasNewConnections = true;
-                    }
-                }
-            }
-
-            // Add or update edges in globalData
-            for (const newEdge of newData.edges) {
-                if (newEdge.to === 0) {
-                    // This edge connects to the visualized node
-                    const fromNode = globalData.nodes.find(n => n.label === newData.nodes[newEdge.from].label && n.file === newData.nodes[newEdge.from].file);
-                    if (fromNode) {
-                        const existingEdge = globalData.edges.find(e => e.from === fromNode.id && e.to === nodeId);
-                        if (!existingEdge) {
-                            globalData.edges.push({ from: fromNode.id, to: nodeId, count: newEdge.count || 1 });
-                            console.log(`Added new edge: ${fromNode.id} -> ${nodeId}, count: ${newEdge.count || 1}`);
-                            hasNewConnections = true;
-                        } else {
-                            console.log(`Edge already exists: ${fromNode.id} -> ${nodeId}, count: ${existingEdge.count}`);
-                        }
-                    }
-                }
-            }
-
-            // Mark the current node as visualized
-            node.visualized = true;
-
-            if (hasNewConnections) {
-                if (panel) {
-                    console.log('Sending updated data to webview');
-                    panel.webview.postMessage({ command: 'updateDiagram', data: globalData, positions: Array.from(nodePositions.entries()) });
-                } else {
-                    console.log('Panel is undefined, cannot update diagram');
-                }
-            } else {
-                console.log('No new connections found, diagram not updated');
-                vscode.window.showInformationMessage('No new connections found for this node.');
-            }
-        } else {
-            console.log('No call hierarchy found');
-            vscode.window.showInformationMessage('No call hierarchy found for the selected function');
+            // Merge the new data with existing data and update the diagram
+            mergeFlowData(newData);
+            showFlowDiagram(globalData, context);
         }
     } catch (error) {
         console.error('Error in visualizeNode:', error);
@@ -266,7 +192,7 @@ async function generateFlowDiagramFromCallHierarchy(
         color: getRandomPastelColor(),
         file: item.uri.fsPath,
         line: item.range.start.line,
-        character: item.range.start.character
+        character: item.selectionRange.start.character
     }];
 
     let edges: {from: number, to: number, count: number}[] = [];
@@ -281,13 +207,14 @@ async function generateFlowDiagramFromCallHierarchy(
         let i = 1;
         for (let [key, count] of callCounts) {
             const [fromName] = key.split('-');
+            const caller = incomingCalls.find(call => call.from.name === fromName)!;
             nodes.push({
                 id: i,
                 label: fromName,
                 color: getRandomPastelColor(),
-                file: incomingCalls.find(call => call.from.name === fromName)!.from.uri.fsPath,
-                line: incomingCalls.find(call => call.from.name === fromName)!.from.range.start.line,
-                character: incomingCalls.find(call => call.from.name === fromName)!.from.range.start.character
+                file: caller.from.uri.fsPath,
+                line: caller.from.range.start.line,
+                character: caller.from.selectionRange.start.character
             });
             edges.push({from: i, to: 0, count: count});
             i++;
