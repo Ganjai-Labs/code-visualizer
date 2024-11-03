@@ -186,42 +186,50 @@ async function generateFlowDiagramFromCallHierarchy(
     item: vscode.CallHierarchyItem,
     incomingCalls: vscode.CallHierarchyIncomingCall[] | undefined
 ): Promise<{nodes: any[], edges: any[]}> {
-    let nodes = [{
-        id: 0,
+    let newNodes = new Map();
+    let newEdges: any[] = [];
+
+    // Add root node
+    const rootKey = `${item.uri.fsPath}::${item.name}`;
+    newNodes.set(rootKey, {
+        id: 1,
         label: item.name,
         color: getRandomPastelColor(),
         file: item.uri.fsPath,
         line: item.range.start.line,
         character: item.selectionRange.start.character
-    }];
-
-    let edges: {from: number, to: number, count: number}[] = [];
+    });
 
     if (incomingCalls) {
-        let callCounts = new Map<string, number>();
-        for (let call of incomingCalls) {
-            const key = `${call.from.name}-${item.name}`;
-            callCounts.set(key, (callCounts.get(key) || 0) + call.fromRanges.length);
-        }
+        incomingCalls.forEach((call, index) => {
+            const callerKey = `${call.from.uri.fsPath}::${call.from.name}`;
+            
+            // Only add the node if it's not already in our map
+            if (!newNodes.has(callerKey)) {
+                newNodes.set(callerKey, {
+                    id: newNodes.size + 1, // ID based on map size
+                    label: call.from.name,
+                    color: getRandomPastelColor(),
+                    file: call.from.uri.fsPath,
+                    line: call.from.range.start.line,
+                    character: call.from.selectionRange.start.character
+                });
+            }
 
-        let i = 1;
-        for (let [key, count] of callCounts) {
-            const [fromName] = key.split('-');
-            const caller = incomingCalls.find(call => call.from.name === fromName)!;
-            nodes.push({
-                id: i,
-                label: fromName,
-                color: getRandomPastelColor(),
-                file: caller.from.uri.fsPath,
-                line: caller.from.range.start.line,
-                character: caller.from.selectionRange.start.character
+            // Add edge using the node's actual ID
+            const callerId = newNodes.get(callerKey).id;
+            newEdges.push({
+                from: callerId,
+                to: 1, // Root node's ID is always 1
+                count: call.fromRanges.length
             });
-            edges.push({from: i, to: 0, count: count});
-            i++;
-        }
+        });
     }
 
-    return {nodes, edges};
+    return {
+        nodes: Array.from(newNodes.values()),
+        edges: newEdges
+    };
 }
 
 async function goToDefinition(nodeId: number) {
@@ -560,24 +568,52 @@ function getWebviewContent(data: {nodes: any[], edges: any[]}) {
 }
 
 function mergeFlowData(newData: {nodes: any[], edges: any[]}) {
-    for (const newNode of newData.nodes) {
-        const existingNode = globalData.nodes.find(n => n.label === newNode.label && n.file === newNode.file);
-        if (!existingNode) {
+    // Create a map of existing nodes by file+label combination
+    const existingNodesMap = new Map(
+        globalData.nodes.map(node => [`${node.file}-${node.label}`, node])
+    );
+
+    // Process new nodes
+    newData.nodes.forEach(newNode => {
+        const key = `${newNode.file}-${newNode.label}`;
+        if (!existingNodesMap.has(key)) {
+            // If node doesn't exist, add it with a new ID
             newNode.id = nextNodeId++;
             globalData.nodes.push(newNode);
+            existingNodesMap.set(key, newNode);
         }
-    }
+    });
 
-    for (const newEdge of newData.edges) {
-        const fromNode = globalData.nodes.find(n => n.label === newData.nodes[newEdge.from].label && n.file === newData.nodes[newEdge.from].file);
-        const toNode = globalData.nodes.find(n => n.label === newData.nodes[newEdge.to].label && n.file === newData.nodes[newEdge.to].file);
+    // Process new edges
+    newData.edges.forEach(newEdge => {
+        // Find the actual node IDs from our existing nodes
+        const fromNode = newData.nodes[newEdge.from - 1];
+        const toNode = newData.nodes[newEdge.to - 1];
+        
         if (fromNode && toNode) {
-            const existingEdge = globalData.edges.find(e => e.from === fromNode.id && e.to === toNode.id);
-            if (!existingEdge) {
-                globalData.edges.push({ from: fromNode.id, to: toNode.id });
+            const fromKey = `${fromNode.file}-${fromNode.label}`;
+            const toKey = `${toNode.file}-${toNode.label}`;
+            
+            const actualFromNode = existingNodesMap.get(fromKey);
+            const actualToNode = existingNodesMap.get(toKey);
+
+            if (actualFromNode && actualToNode) {
+                // Check if edge already exists
+                const edgeExists = globalData.edges.some(e => 
+                    e.from === actualFromNode.id && 
+                    e.to === actualToNode.id
+                );
+
+                if (!edgeExists) {
+                    globalData.edges.push({
+                        from: actualFromNode.id,
+                        to: actualToNode.id,
+                        count: newEdge.count
+                    });
+                }
             }
         }
-    }
+    });
 }
 
 export function deactivate() {}
