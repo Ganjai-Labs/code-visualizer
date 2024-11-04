@@ -8,18 +8,17 @@
     "vscode": "^1.60.0"
   },
   "categories": [
-    "Visualization",
-    "Other"
+    "Visualization"
   ],
   "activationEvents": [
-    "onCommand:codeflow.generateCodeFlow"
+    "onCommand:codeflow.Visualize"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "codeflow.generateCodeFlow",
-        "title": "Generate CodeFlow"
+        "title": "Visualize"
       },
       {
         "command": "codeflow.visualize",

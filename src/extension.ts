@@ -107,7 +107,7 @@ function showFlowDiagram(data: {nodes: any[], edges: any[]}, context: vscode.Ext
         console.log('Creating new panel');
         panel = vscode.window.createWebviewPanel(
             'codeFlow',
-            'CodeFlow Diagram',
+            `CodeFlow: ${data.nodes[0]?.label || 'Function Diagram'}`,
             vscode.ViewColumn.Beside,
             {
                 enableScripts: true
@@ -343,9 +343,41 @@ function getWebviewContent(data: {nodes: any[], edges: any[]}) {
                     background-color: var(--vscode-menu-selectionBackground);
                     color: var(--vscode-menu-selectionForeground);
                 }
+                .search-container {
+                    position: absolute;
+                    top: 5px;
+                    right: 25px;
+                    z-index: 1000;
+                    display: flex;
+                    gap: 5px;
+                }
+
+                .search-input {
+                    padding: 5px 10px;
+                    border: 1px solid var(--vscode-input-border);
+                    background-color: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                    border-radius: 3px;
+                    width: 200px;
+                }
+
+                .search-message {
+                    position: absolute;
+                    top: 40px;
+                    right: 10px;
+                    background-color: var(--vscode-notifications-background);
+                    color: var(--vscode-notifications-foreground);
+                    padding: 5px 10px;
+                    border-radius: 3px;
+                    display: none;
+                }
             </style>
         </head>
         <body>
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search function...">
+            </div>
+            <div id="search-message" class="search-message"></div>
             <div id="mynetwork"></div>
             <div id="context-menu">
                 <button id="visualize">Visualize</button>
@@ -557,6 +589,69 @@ function getWebviewContent(data: {nodes: any[], edges: any[]}) {
                             });
                         }
                     }
+
+                    // Add this after network initialization
+                    const searchInput = document.getElementById('searchInput');
+                    const searchMessage = document.getElementById('search-message');
+                    
+                    searchInput.addEventListener('input', function(e) {
+                        const searchTerm = e.target.value.toLowerCase();
+                        if (!searchTerm) {
+                            searchMessage.style.display = 'none';
+                            network.unselectAll();
+                            return;
+                        }
+
+                        const matchingNodes = nodes.get().filter(node => 
+                            node.label.toLowerCase().includes(searchTerm)
+                        );
+
+                        if (matchingNodes.length > 0) {
+                            const firstMatch = matchingNodes[0];
+                            network.selectNodes([firstMatch.id]);
+                            network.focus(firstMatch.id, {
+                                scale: 1,
+                                animation: true
+                            });
+                            searchMessage.textContent = \`Found \${matchingNodes.length} match\${matchingNodes.length > 1 ? 'es' : ''}\`;
+                            searchMessage.style.display = 'block';
+                        } else {
+                            network.unselectAll();
+                            searchMessage.textContent = 'No matches found';
+                            searchMessage.style.display = 'block';
+                        }
+                    });
+
+                    // Add keyboard navigation for search results
+                    let currentMatchIndex = 0;
+                    document.addEventListener('keydown', function(e) {
+                        if (!searchInput.value) return;
+                        
+                        const matchingNodes = nodes.get().filter(node => 
+                            node.label.toLowerCase().includes(searchInput.value.toLowerCase())
+                        );
+
+                        if (matchingNodes.length === 0) return;
+
+                        if (e.key === 'Enter') {
+                            if (e.shiftKey) {
+                                // Previous match
+                                currentMatchIndex = (currentMatchIndex - 1 + matchingNodes.length) % matchingNodes.length;
+                            } else {
+                                // Next match
+                                currentMatchIndex = (currentMatchIndex + 1) % matchingNodes.length;
+                            }
+
+                            const currentMatch = matchingNodes[currentMatchIndex];
+                            network.selectNodes([currentMatch.id]);
+                            network.focus(currentMatch.id, {
+                                scale: 1,
+                                animation: true
+                            });
+                            searchMessage.textContent = \`Showing \${currentMatchIndex + 1} of \${matchingNodes.length} matches\`;
+                            searchMessage.style.display = 'block';
+                        }
+                    });
 
                     // Initialize the network with initial data
                     initNetwork(${JSON.stringify(data)}, ${JSON.stringify(Array.from(nodePositions.entries()))});
